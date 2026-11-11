@@ -12,16 +12,18 @@ const worksData: Record<string, {
 }> = {
   "calendar": {
     title: "カレンダーアプリ",
-    category: "Next.js / TypeScript",
-    date: "2026.07",
-    desc: "シンプルな操作で予定を管理・確認できるWebベースの統合カレンダーアプリケーション。",
+    category: "JavaScript / HTML / CSS",
+    date: "2026.11",
+    desc: "直感的な操作で予定の登録・時間管理・一括コピー・URL共有までが行えるWebベースのカレンダーアプリケーション。",
     details: [
-      "Local Storageを活用したブラウザ内データ永続化機能の実装",
-      "モーダルダイアログによる直感的なスケジュール作成・編集UI",
-      "URLパラメーターによる設定およびカレンダー状態の共有機能"
+      "LocalStorageを活用したブラウザ内での予定データ永続化機能",
+      "開始・終了時間の指定および終日予定に対応したモーダル入力UI",
+      "複数日への一括貼り付けに対応したマルチコピープラグイン機能",
+      "Base64エンコードによるワンクリックでのカレンダー共有URL生成機能"
     ],
-    techStack: ["Next.js", "TypeScript", "Tailwind CSS", "Local Storage"],
-    githubUrl: "https://github.com"
+    techStack: ["JavaScript (ES6+)", "HTML5", "CSS3", "Local Storage"],
+    demoUrl: "https://you1123242.github.io/calender.js/",
+    githubUrl: "https://github.com/you1123242/calender.js"
   },
   "tetris": {
     title: "ブラウザテトリスゲーム",
@@ -35,7 +37,7 @@ const worksData: Record<string, {
     ],
     techStack: ["JavaScript (ES6+)", "HTML5 Canvas", "CSS3"],
     demoUrl: "https://you1123242.github.io/js-tetris/",
-    githubUrl: "https://github.com"
+    githubUrl: "https://github.com/you1123242/js-tetris"
   },
   "portfolio": {
     title: "ポートフォリオWebサイト",
@@ -48,7 +50,7 @@ const worksData: Record<string, {
       "GitHubとのCI/CD自動連携によるビルド・デプロイパイプラインの構築"
     ],
     techStack: ["Next.js", "Tailwind CSS", "TypeScript", "Cloudflare Pages"],
-    githubUrl: "https://github.com"
+    githubUrl: "https://github.com/you1123242/my-portfolio"
   }
 };
 
