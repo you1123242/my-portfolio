@@ -5,9 +5,9 @@ export default function Home() {
     {
       id: "calendar",
       title: "カレンダーアプリ",
-      category: "Next.js / TypeScript",
-      desc: "シンプルな操作で予定を管理・確認できるWebベースの統合カレンダーアプリケーション。",
-      date: "2026.07"
+      category: "JavaScript / HTML / CSS",
+      desc: "直感的な操作で予定の登録・時間管理・一括コピー・URL共有までが行えるWebベースのカレンダーアプリケーション。",
+      date: "2026.11"
     },
     {
       id: "tetris",
