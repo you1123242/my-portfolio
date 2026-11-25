@@ -1,1 +1,16 @@
 @import "tailwindcss";
+@keyframes zeroGravity {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-10px) rotate(0.6deg);
+  }
+  66% {
+    transform: translateY(6px) rotate(-0.6deg);
+  }
+}
+
+.animate-zero-gravity {
+  animation: zeroGravity 7s ease-in-out infinite;
+}
