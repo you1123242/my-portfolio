@@ -17,22 +17,32 @@ export interface ScrollPhysicsState {
 interface ScrollCardProps {
   id: string;
   state: ScrollPhysicsState;
+  isZeroGravity: boolean;
   onUpdateState: (id: string, updater: (prev: ScrollPhysicsState) => ScrollPhysicsState) => void;
   children: ReactNode;
 }
 
-export default function ScrollCard({ id, state, onUpdateState, children }: ScrollCardProps) {
+export default function ScrollCard({
+  id,
+  state,
+  isZeroGravity,
+  onUpdateState,
+  children,
+}: ScrollCardProps) {
   const [dragMode, setDragMode] = useState<'none' | 'move' | 'resize-top' | 'resize-bottom'>('none');
   const lastPointer = useRef({ x: 0, y: 0, time: 0 });
   const startPointer = useRef({ x: 0, y: 0 });
   const startState = useRef({ x: 0, y: 0, height: 210 });
   const hasDragged = useRef(false);
 
-  // ドラッグ開始（setPointerCaptureを使わず、リンクのクリック判定を残す）
+  // ドラッグ開始
   const handlePointerDown = (
     e: React.PointerEvent,
     mode: 'move' | 'resize-top' | 'resize-bottom'
   ) => {
+    // 無重力OFFのときは本体の位置移動ドラッグは行わない
+    if (mode === 'move' && !isZeroGravity) return;
+
     e.stopPropagation();
 
     setDragMode(mode);
@@ -61,12 +71,11 @@ export default function ScrollCard({ id, state, onUpdateState, children }: Scrol
       const dxTotal = e.clientX - startPointer.current.x;
       const dyTotal = e.clientY - startPointer.current.y;
 
-      // 6px以上動かしたら「ドラッグ操作」と判定
       if (Math.abs(dxTotal) > 6 || Math.abs(dyTotal) > 6) {
         hasDragged.current = true;
       }
 
-      if (dragMode === 'move') {
+      if (dragMode === 'move' && isZeroGravity) {
         const instantVx = ((e.clientX - lastPointer.current.x) / dt) * 16;
         const instantVy = ((e.clientY - lastPointer.current.y) / dt) * 16;
 
@@ -86,7 +95,7 @@ export default function ScrollCard({ id, state, onUpdateState, children }: Scrol
         onUpdateState(id, (prev) => ({
           ...prev,
           height: newHeight,
-          y: startState.current.y - actualDelta,
+          y: isZeroGravity ? startState.current.y - actualDelta : 0,
         }));
       }
 
@@ -99,9 +108,9 @@ export default function ScrollCard({ id, state, onUpdateState, children }: Scrol
       onUpdateState(id, (prev) => ({
         ...prev,
         isDragging: false,
-        vx: isStopped ? (Math.random() - 0.5) * 0.4 : prev.vx,
-        vy: isStopped ? (Math.random() - 0.5) * 0.4 : prev.vy,
-        vRot: isStopped ? (Math.random() - 0.5) * 0.05 : prev.vx * 0.03,
+        vx: isZeroGravity ? (isStopped ? (Math.random() - 0.5) * 0.4 : prev.vx) : 0,
+        vy: isZeroGravity ? (isStopped ? (Math.random() - 0.5) * 0.4 : prev.vy) : 0,
+        vRot: isZeroGravity ? (isStopped ? (Math.random() - 0.5) * 0.05 : prev.vx * 0.03) : 0,
       }));
 
       setDragMode('none');
@@ -112,56 +121,4 @@ export default function ScrollCard({ id, state, onUpdateState, children }: Scrol
 
     return () => {
       window.removeEventListener('pointermove', handleWindowPointerMove);
-      window.removeEventListener('pointerup', handleWindowPointerUp);
-    };
-  }, [dragMode, id, onUpdateState]);
-
-  // ドラッグ操作だった場合のみリンク遷移をキャンセルする
-  const handleClickCapture = (e: React.MouseEvent) => {
-    if (hasDragged.current) {
-      e.preventDefault();
-      e.stopPropagation();
-      hasDragged.current = false;
-    }
-  };
-
-  return (
-    <div
-      style={{
-        transform: `translate(${state.x}px, ${state.y}px) rotate(${state.rotation}deg)`,
-        zIndex: state.isDragging ? 50 : 10,
-      }}
-      className="relative select-none touch-none will-change-transform"
-      onClickCapture={handleClickCapture}
-    >
-      {/* 上側の巻き軸（ドラッグで伸縮） */}
-      <div
-        onPointerDown={(e) => handlePointerDown(e, 'resize-top')}
-        title="上下にドラッグして巻物を伸縮"
-        className="h-5 bg-gradient-to-b from-amber-900 to-amber-950 rounded-t-md shadow-md cursor-ns-resize flex items-center justify-center border-b border-amber-800 hover:brightness-110"
-      >
-        <div className="w-12 h-1 bg-amber-700/60 rounded-full" />
-      </div>
-
-      {/* 巻物の紙本体（クリックでリンク遷移 ／ ドラッグで無重力移動） */}
-      <div
-        onPointerDown={(e) => handlePointerDown(e, 'move')}
-        style={{ height: `${state.height}px` }}
-        className={`bg-[#fffdfa] border-x-2 border-amber-900/30 shadow-2xl p-6 sm:p-8 overflow-y-auto ${
-          state.isDragging ? 'cursor-grabbing shadow-amber-950/30' : 'cursor-pointer'
-        }`}
-      >
-        {children}
-      </div>
-
-      {/* 下側の巻き軸（ドラッグで伸縮） */}
-      <div
-        onPointerDown={(e) => handlePointerDown(e, 'resize-bottom')}
-        title="上下にドラッグして巻物を伸縮"
-        className="h-5 bg-gradient-to-t from-amber-900 to-amber-950 rounded-b-md shadow-md cursor-ns-resize flex items-center justify-center border-t border-amber-800 hover:brightness-110"
-      >
-        <div className="w-12 h-1 bg-amber-700/60 rounded-full" />
-      </div>
-    </div>
-  );
-}
+      window.
