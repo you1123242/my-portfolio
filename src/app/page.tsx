@@ -27,27 +27,30 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen bg-amber-50/40 py-16 px-4 sm:px-8 overflow-hidden">
+    <main className="min-h-screen bg-amber-50/40 py-16 px-4 sm:px-8 overflow-x-clip">
       <div className="max-w-4xl mx-auto">
-        <header className="text-center mb-16">
+        <header className="text-center mb-12">
           <h1 className="text-4xl sm:text-5xl font-bold tracking-widest text-stone-800 mb-3">
             ようたのポートフォリオ
           </h1>
-          <p className="text-stone-600 font-medium">滋賀大学 データサイエンス学部</p>
+          <p className="text-stone-600 font-medium mb-4">滋賀大学 データサイエンス学部</p>
+          <p className="text-xs text-amber-900/80 bg-amber-100/80 inline-block px-4 py-1.5 rounded-full font-medium">
+            💡 巻物の木軸（上下の棒）をドラッグで伸縮 ／ 紙部分をドラッグで無重力移動
+          </p>
         </header>
 
         <section>
-          <h2 className="text-2xl font-bold text-stone-800 mb-12 border-b-2 border-amber-800/30 pb-2 inline-block">
+          <h2 className="text-2xl font-bold text-stone-800 mb-10 border-b-2 border-amber-800/30 pb-2 inline-block">
             制作実績一覧
           </h2>
 
-          <div className="flex flex-col gap-12">
-            {projects.map((project) => (
-              /* ScrollCard で囲むことで、スクロール時に巻物が広がります */
-              <ScrollCard key={project.id}>
+          <div className="flex flex-col gap-12 pb-24">
+            {projects.map((project, index) => (
+              <ScrollCard key={project.id} floatDelay={index * 1.8}>
                 <Link
                   href={`/works/${project.id}`}
-                  className="group block transition-all"
+                  className="group block"
+                  draggable={false}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                     <span className="text-xs font-bold text-amber-900 bg-amber-100 px-3 py-1 rounded-full w-fit">
