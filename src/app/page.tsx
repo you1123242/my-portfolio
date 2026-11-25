@@ -35,7 +35,6 @@ const createInitialStates = (): Record<string, ScrollPhysicsState> => {
       id: p.id,
       x: 0,
       y: 0,
-      // 最初は無重力空間をゆっくり漂う微速を与える
       vx: (idx % 2 === 0 ? 1 : -1) * 0.25,
       vy: (idx === 1 ? -1 : 1) * 0.2,
       height: 210,
@@ -48,6 +47,7 @@ const createInitialStates = (): Record<string, ScrollPhysicsState> => {
 };
 
 export default function Home() {
+  const [isZeroGravity, setIsZeroGravity] = useState<boolean>(true);
   const [physics, setPhysics] = useState<Record<string, ScrollPhysicsState>>(createInitialStates);
   const physicsRef = useRef(physics);
   physicsRef.current = physics;
@@ -64,12 +64,51 @@ export default function Home() {
     []
   );
 
-  const handleResetPositions = () => {
-    setPhysics(createInitialStates());
+  // 無重力モードのON/OFF切り替え
+  const handleToggleZeroGravity = () => {
+    setIsZeroGravity((prev) => {
+      const nextMode = !prev;
+      if (!nextMode) {
+        // 通常モードに戻すときは位置と速度をリセットして綺麗に整列
+        setPhysics((curr) => {
+          const resetState: Record<string, ScrollPhysicsState> = {};
+          PROJECTS.forEach((p) => {
+            resetState[p.id] = {
+              ...curr[p.id],
+              x: 0,
+              y: 0,
+              vx: 0,
+              vy: 0,
+              rotation: 0,
+              vRot: 0,
+              isDragging: false,
+            };
+          });
+          return resetState;
+        });
+      } else {
+        // 無重力モードを再開するときは微弱な漂流速度を与える
+        setPhysics((curr) => {
+          const floatState: Record<string, ScrollPhysicsState> = {};
+          PROJECTS.forEach((p, idx) => {
+            floatState[p.id] = {
+              ...curr[p.id],
+              vx: (idx % 2 === 0 ? 1 : -1) * 0.25,
+              vy: (idx === 1 ? -1 : 1) * 0.2,
+              vRot: (idx % 2 === 0 ? 1 : -1) * 0.02,
+            };
+          });
+          return floatState;
+        });
+      }
+      return nextMode;
+    });
   };
 
-  // 60fps 物理演算ループ（慣性・壁バウンド・巻物同士の衝突）
+  // 60fps 物理演算ループ（無重力モードがONのときのみ実行）
   useEffect(() => {
+    if (!isZeroGravity) return;
+
     let animationFrameId: number;
 
     const updatePhysics = () => {
@@ -85,17 +124,14 @@ export default function Home() {
           item.y += item.vy;
           item.rotation += item.vRot;
 
-          // 空気抵抗（無重力なのでごく弱い減衰にとどめ、微速漂流は維持する）
           const speed = Math.hypot(item.vx, item.vy);
           if (speed > 0.35) {
             item.vx *= 0.985;
             item.vy *= 0.985;
           }
           item.vRot *= 0.98;
-          // 傾きすぎたらゆっくり水平に戻ろうとする復元力
           item.vRot -= item.rotation * 0.0015;
 
-          // 左右の画面端（コンテナ基準）での跳ね返り
           const maxOffsetX = Math.max(40, (window.innerWidth - containerWidth) / 2 + 20);
           if (item.x < -maxOffsetX) {
             item.x = -maxOffsetX;
@@ -105,7 +141,6 @@ export default function Home() {
             item.vx = -Math.abs(item.vx) * 0.85;
           }
 
-          // 上下の移動限界での跳ね返り
           if (item.y < -120) {
             item.y = -120;
             item.vy = Math.abs(item.vy) * 0.85;
@@ -117,13 +152,12 @@ export default function Home() {
         current[id] = item;
       });
 
-      // 2. 巻物同士の衝突判定（AABB矩形衝突 ＋ 運動量交換）
-      // 各カードの初期基準Y座標を累積高さ＋gap(48px)から算出
+      // 2. 巻物同士の衝突判定
       const basePositionsY: Record<string, number> = {};
       let accY = 0;
       ids.forEach((id) => {
         basePositionsY[id] = accY;
-        accY += current[id].height + 40 + 48; // 紙高さ + 上下軸40px + gap48px
+        accY += current[id].height + 40 + 48;
       });
 
       for (let i = 0; i < ids.length; i++) {
@@ -145,12 +179,10 @@ export default function Home() {
           const overlapX = w - Math.abs(dx);
           const overlapY = (hA + hB) / 2 - Math.abs(dy);
 
-          // 縦横ともに重なっていたら衝突発生！
           if (overlapX > 0 && overlapY > 0) {
-            const restitution = 0.85; // 反発係数
+            const restitution = 0.85;
 
             if (overlapX < overlapY) {
-              // 横方向の衝突
               const sign = dx >= 0 ? 1 : -1;
               const push = overlapX / 2;
               if (!a.isDragging) a.x -= sign * push;
@@ -160,7 +192,6 @@ export default function Home() {
               if (!a.isDragging) a.vx = (b.isDragging ? -tempVx : b.vx) * restitution;
               if (!b.isDragging) b.vx = (a.isDragging ? tempVx * 1.2 : tempVx) * restitution;
             } else {
-              // 縦方向の衝突
               const sign = dy >= 0 ? 1 : -1;
               const push = overlapY / 2;
               if (!a.isDragging) a.y -= sign * push;
@@ -170,7 +201,6 @@ export default function Home() {
               if (!a.isDragging) a.vy = (b.isDragging ? -tempVy : b.vy) * restitution;
               if (!b.isDragging) b.vy = (a.isDragging ? tempVy * 1.2 : tempVy) * restitution;
 
-              // ぶつかった衝撃で少し回転を与える
               if (!a.isDragging) a.vRot += (Math.random() - 0.5) * 0.4;
               if (!b.isDragging) b.vRot += (Math.random() - 0.5) * 0.4;
             }
@@ -187,7 +217,7 @@ export default function Home() {
 
     animationFrameId = requestAnimationFrame(updatePhysics);
     return () => cancelAnimationFrame(animationFrameId);
-  }, []);
+  }, [isZeroGravity]);
 
   return (
     <main className="min-h-screen bg-amber-50/40 py-16 px-4 sm:px-8 overflow-x-clip">
@@ -196,17 +226,26 @@ export default function Home() {
           <h1 className="text-4xl sm:text-5xl font-bold tracking-widest text-stone-800 mb-3">
             ようたのポートフォリオ
           </h1>
-          <p className="text-stone-600 font-medium mb-4">滋賀大学 データサイエンス学部</p>
+          <p className="text-stone-600 font-medium mb-5">滋賀大学 データサイエンス学部</p>
+
+          {/* 無重力モード 切り替えコントロール */}
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <p className="text-xs text-amber-900/80 bg-amber-100/80 px-4 py-1.5 rounded-full font-medium">
-              💡 軸をドラッグで伸縮 ／ 紙を弾いて無重力衝突
-            </p>
             <button
-              onClick={handleResetPositions}
-              className="text-xs bg-stone-800 text-white px-3.5 py-1.5 rounded-full font-bold hover:bg-stone-700 transition-colors cursor-pointer"
+              onClick={handleToggleZeroGravity}
+              className={`text-xs px-4 py-2 rounded-full font-bold transition-all cursor-pointer shadow-sm flex items-center gap-1.5 ${
+                isZeroGravity
+                  ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                  : "bg-stone-200 text-stone-800 hover:bg-stone-300"
+              }`}
             >
-              ↺ 配置をリセット
+              <span>{isZeroGravity ? "🚀 無重力モード: ON" : "📌 通常モード（整列）"}</span>
             </button>
+
+            <p className="text-xs text-amber-900/80 bg-amber-100/80 px-4 py-2 rounded-full font-medium">
+              {isZeroGravity
+                ? "💡 軸をドラッグで伸縮 ／ 紙を弾いて無重力衝突"
+                : "💡 軸をドラッグで伸縮 ／ クリックで詳細へ移動"}
+            </p>
           </div>
         </header>
 
@@ -221,6 +260,7 @@ export default function Home() {
                 key={project.id}
                 id={project.id}
                 state={physics[project.id]}
+                isZeroGravity={isZeroGravity}
                 onUpdateState={handleUpdateState}
               >
                 <Link
