@@ -1,72 +1,139 @@
 "use client";
 
-import { useEffect, useRef, useState, ReactNode } from "react";
+import { useState, useRef, ReactNode } from "react";
 
 interface ScrollCardProps {
   children: ReactNode;
+  floatDelay?: number; // 浮遊タイミングをカードごとにずらすための秒数
 }
 
-export default function ScrollCard({ children }: ScrollCardProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
+export default function ScrollCard({ children, floatDelay = 0 }: ScrollCardProps) {
+  // 巻物の高さ（px）
+  const [height, setHeight] = useState<number>(210);
+  // 無重力空間での移動位置（x, y）
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  // 操作状態（'none' | 'move' | 'resize-top' | 'resize-bottom'）
+  const [dragMode, setDragMode] = useState<'none' | 'move' | 'resize-top' | 'resize-bottom'>('none');
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // 画面内に30%以上入ったら巻物を開く
-        if (entry.isIntersecting) {
-          setIsOpen(true);
-        }
-      },
-      { threshold: 0.3 }
-    );
+  const startPointer = useRef({ x: 0, y: 0 });
+  const startState = useRef({ x: 0, y: 0, height: 210 });
+  const hasDragged = useRef(false);
 
-    if (cardRef.current) {
-      observer.observe(cardRef.current);
+  // ドラッグ開始（本体移動 / 上軸伸縮 / 下軸伸縮）
+  const handlePointerDown = (
+    e: React.PointerEvent,
+    mode: 'move' | 'resize-top' | 'resize-bottom'
+  ) => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+
+    setDragMode(mode);
+    hasDragged.current = false;
+    startPointer.current = { x: e.clientX, y: e.clientY };
+    startState.current = { x: position.x, y: position.y, height };
+  };
+
+  // ドラッグ中の計算
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (dragMode === 'none') return;
+
+    const dx = e.clientX - startPointer.current.x;
+    const dy = e.clientY - startPointer.current.y;
+
+    // 5px以上動かしたら「クリックではなくドラッグ操作」と判定
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      hasDragged.current = true;
     }
 
-    return () => {
-      if (cardRef.current) {
-        observer.unobserve(cardRef.current);
-      }
-    };
-  }, []);
+    if (dragMode === 'move') {
+      // 巻物全体の移動
+      setPosition({
+        x: startState.current.x + dx,
+        y: startState.current.y + dy,
+      });
+    } else if (dragMode === 'resize-bottom') {
+      // 下の軸を引っ張って伸縮（最小90px 〜 最大450px）
+      const newHeight = Math.max(90, Math.min(450, startState.current.height + dy));
+      setHeight(newHeight);
+    } else if (dragMode === 'resize-top') {
+      // 上の軸を引っ張って伸縮（上方向に広げた分、位置も調整）
+      const newHeight = Math.max(90, Math.min(450, startState.current.height - dy));
+      const actualDelta = newHeight - startState.current.height;
+      setHeight(newHeight);
+      setPosition({
+        x: startState.current.x,
+        y: startState.current.y - actualDelta,
+      });
+    }
+  };
+
+  // ドラッグ終了
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (dragMode === 'none') return;
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    setDragMode('none');
+  };
+
+  // ドラッグ直後のリンク遷移（誤クリック）を防止
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (hasDragged.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
 
   return (
     <div
-      ref={cardRef}
-      className={`relative transition-all duration-1000 ease-out transform ${
-        isOpen
-          ? "opacity-100 translate-y-0 scale-100"
-          : "opacity-0 translate-y-12 scale-95"
-      }`}
+      style={{
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        zIndex: dragMode !== 'none' ? 50 : 10,
+      }}
+      className="relative select-none touch-none transition-shadow"
+      onClickCapture={handleClickCapture}
     >
-      {/* 上側の巻き軸パーツ（開くときに上に移動） */}
-      <div
-        className={`absolute -top-3 left-0 right-0 h-4 bg-amber-950 rounded-t-md shadow-md z-10 transition-transform duration-1000 ease-out ${
-          isOpen ? "-translate-y-1" : "translate-y-8"
-        }`}
-      />
-
-      {/* 巻物の紙本体（clip-pathで上下に広がるアニメーション） */}
+      {/* 無重力でゆらゆら浮くラッパー（ドラッグ中だけ一時停止して掴みやすくする） */}
       <div
         style={{
-          clipPath: isOpen
-            ? "inset(0% 0% 0% 0%)"
-            : "inset(50% 0% 50% 0%)",
-          transition: "clip-path 1.2s cubic-bezier(0.16, 1, 0.3, 1)",
+          animationDelay: `${floatDelay}s`,
+          animationPlayState: dragMode !== 'none' ? 'paused' : 'running',
         }}
-        className="bg-[#fffdfa] border-x-2 border-amber-900/30 shadow-2xl rounded-sm p-6 sm:p-8"
+        className="animate-zero-gravity"
       >
-        {children}
-      </div>
+        {/* 上側の巻き軸（ドラッグで伸縮） */}
+        <div
+          onPointerDown={(e) => handlePointerDown(e, 'resize-top')}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          title="上下にドラッグして巻物を伸縮"
+          className="h-5 bg-gradient-to-b from-amber-900 to-amber-950 rounded-t-md shadow-md cursor-ns-resize flex items-center justify-center border-b border-amber-800 hover:brightness-110"
+        >
+          <div className="w-12 h-1 bg-amber-700/60 rounded-full" />
+        </div>
 
-      {/* 下側の巻き軸パーツ（開くときに下に移動） */}
-      <div
-        className={`absolute -bottom-3 left-0 right-0 h-4 bg-amber-950 rounded-b-md shadow-md z-10 transition-transform duration-1000 ease-out ${
-          isOpen ? "translate-y-1" : "-translate-y-8"
-        }`}
-      />
+        {/* 巻物の紙本体（ドラッグで無重力空間を移動） */}
+        <div
+          onPointerDown={(e) => handlePointerDown(e, 'move')}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          style={{ height: `${height}px` }}
+          className={`bg-[#fffdfa] border-x-2 border-amber-900/30 shadow-2xl p-6 sm:p-8 overflow-y-auto ${
+            dragMode === 'move' ? 'cursor-grabbing shadow-amber-950/20' : 'cursor-grab'
+          }`}
+        >
+          {children}
+        </div>
+
+        {/* 下側の巻き軸（ドラッグで伸縮） */}
+        <div
+          onPointerDown={(e) => handlePointerDown(e, 'resize-bottom')}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          title="上下にドラッグして巻物を伸縮"
+          className="h-5 bg-gradient-to-t from-amber-900 to-amber-950 rounded-b-md shadow-md cursor-ns-resize flex items-center justify-center border-t border-amber-800 hover:brightness-110"
+        >
+          <div className="w-12 h-1 bg-amber-700/60 rounded-full" />
+        </div>
+      </div>
     </div>
   );
 }
