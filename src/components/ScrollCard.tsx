@@ -121,4 +121,63 @@ export default function ScrollCard({
 
     return () => {
       window.removeEventListener('pointermove', handleWindowPointerMove);
-      window.
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+    };
+  }, [dragMode, id, isZeroGravity, onUpdateState]);
+
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (hasDragged.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      hasDragged.current = false;
+    }
+  };
+
+  return (
+    <div
+      style={{
+        transform: isZeroGravity
+          ? `translate(${state.x}px, ${state.y}px) rotate(${state.rotation}deg)`
+          : `translate(0px, 0px) rotate(0deg)`,
+        zIndex: state.isDragging ? 50 : 10,
+      }}
+      className={`relative select-none touch-none will-change-transform ${
+        !isZeroGravity ? "transition-transform duration-500 ease-out" : ""
+      }`}
+      onClickCapture={handleClickCapture}
+    >
+      {/* 上側の巻き軸（ドラッグで伸縮） */}
+      <div
+        onPointerDown={(e) => handlePointerDown(e, 'resize-top')}
+        title="上下にドラッグして巻物を伸縮"
+        className="h-5 bg-gradient-to-b from-amber-900 to-amber-950 rounded-t-md shadow-md cursor-ns-resize flex items-center justify-center border-b border-amber-800 hover:brightness-110"
+      >
+        <div className="w-12 h-1 bg-amber-700/60 rounded-full" />
+      </div>
+
+      {/* 巻物の紙本体 */}
+      <div
+        onPointerDown={(e) => handlePointerDown(e, 'move')}
+        style={{ height: `${state.height}px` }}
+        className={`bg-[#fffdfa] border-x-2 border-amber-900/30 shadow-2xl p-6 sm:p-8 overflow-y-auto transition-shadow ${
+          !isZeroGravity
+            ? "cursor-pointer hover:-translate-y-0.5"
+            : state.isDragging
+            ? "cursor-grabbing shadow-amber-950/30"
+            : "cursor-grab"
+        }`}
+      >
+        {children}
+      </div>
+
+      {/* 下側の巻き軸（ドラッグで伸縮） */}
+      <div
+        onPointerDown={(e) => handlePointerDown(e, 'resize-bottom')}
+        title="上下にドラッグして巻物を伸縮"
+        className="h-5 bg-gradient-to-t from-amber-900 to-amber-950 rounded-b-md shadow-md cursor-ns-resize flex items-center justify-center border-t border-amber-800 hover:brightness-110"
+      >
+        <div className="w-12 h-1 bg-amber-700/60 rounded-full" />
+      </div>
+    </div>
+  );
+}
